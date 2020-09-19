@@ -118,7 +118,6 @@ export default class App extends React.Component {
     &location=${itemValue}`
       )
       .then((location) => {
-        console.log(e);
         lat = location.data.results[0].locations[0].latLng.lat;
         lng = location.data.results[0].locations[0].latLng.lng;
         axios
@@ -148,13 +147,13 @@ export default class App extends React.Component {
               onValueChange={(itemValue) => this.onChangeHandler(itemValue)}
             >
               {this.state.cities.map((item, index) => {
-                return <Picker.Item label={item} value={index} key={index} />;
+                return <Picker.Item label={item} value={index} key={index} />
               })}
             </Picker>
-            {this.state.sunrise && (
+            {!!this.state.sunrise && (
               <React.Fragment>
                 <Text>Sunrise:{this.state.sunrise}</Text>
-                <Text>Sunset: {this.state.sunset}</Text>
+                <Text>Sunset:{this.state.sunset}</Text>
               </React.Fragment>
             )}
 
@@ -176,9 +175,7 @@ export default class App extends React.Component {
             />
             <StatusBar style="auto" />
           </React.Fragment>
-        ) : (
-          <ActivityIndicator size="large" />
-        )}
+        ) : (<View><ActivityIndicator size="large" /></View>)}
       </View>
     );
   }
