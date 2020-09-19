@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import Moment from "react-moment";
+import axios from "axios"
 
 export default class App extends React.Component {
   state = {
@@ -30,11 +31,13 @@ export default class App extends React.Component {
         e.forEach((element) => {
           cityArr.push(element.capital);
         });
+        this.onChangeHandler(cityArr[0])
         this.setState({
           cities: cityArr,
         });
       });
     });
+  
   };
 
   getFromLocal = async () => {
@@ -67,42 +70,33 @@ export default class App extends React.Component {
     this.setState({
       loading: true,
     });
-    let lat, lng;
-    await this.getCityLocation().then((response) => {
-      response.json().then((e) => {
-        console.log(1);
-        console.log(e);
-        lat = e.results[0].locations[0].latLng.lat;
-        lng = e.results[0].locations[0].latLng.lng;
-        this.getSunTime(lat, lng)
-          .then((e) => {
-            e.json().then((ee) => {
-              console.log(2);
-              this.setState({
-                lat: lat,
-                lng: lng,
-                sunrise: ee.results.sunrise,
-                sunset: ee.results.sunset,
-                loading: false,
-              });
-            });
-          })
 
-          .then(() => {
-            console.log(this.state);
+    this.getSunTime()
+      .then((e) => {
+        e.json().then((ee) => {
+          this.setState({
+            lat: this.state.lat,
+            lng: this.state.lng,
+            sunrise: this.getDateWithOffset(ee.results.sunrise),
+            sunset: this.getDateWithOffset(ee.results.sunset),
+            loading: false,
           });
+        });
+      })
+
+      .then(() => {
+        console.log(this.state);
       });
-    });
   };
 
   getDateWithOffset = (date) => {
-    console.log(new Date(String(date)));
-    return date.slice(0, 1) - Number(this.state.offSetTime) + date.slice(1);
+    let hours = Number(date.split(':')[0]) - Number(this.state.offSetTime) 
+    return hours + date.slice(date.indexOf(":"))
   };
 
-  getCityLocation = async () => {
+  getCityLocation = async (pickerVal) => {
     return await fetch(`http://open.mapquestapi.com/geocoding/v1/address?key=55AhwkWG4Q0TgrT21xTKdMHB36kLLqtE
-&location=${this.state.pickerVal}`);
+&location=${pickerVal || this.state.pickerVal}`);
   };
 
   getLocation = async () => {
@@ -110,9 +104,11 @@ export default class App extends React.Component {
     return await Location.getCurrentPositionAsync({});
   };
 
-  getOffset = async () => {
+  getOffset = async (lat, lng) => {
     return await fetch(
-      `http://api.timezonedb.com/v2.1/get-time-zone?key=6XHWPNX38NKN&format=json&by=position&lat=${this.state.lat}&lng=${this.state.lng}`
+      `http://api.timezonedb.com/v2.1/get-time-zone?key=6XHWPNX38NKN&format=json&by=position&lat=${
+        lat || this.state.lat
+      }&lng=${lng || this.state.lng}`
     );
   };
 
@@ -124,6 +120,42 @@ export default class App extends React.Component {
       }`
     );
   };
+
+  onChangeHandler = async (itemValue) => {
+    this.setState({
+      loading: true,
+      sunrise: "",
+      sunset: "",
+      pickerVal:itemValue
+    });
+    let lat, lng;
+    // this.getCityLocation(itemValue).then((response) => {
+    //   response.json().then((e) => {
+    //     console.log(e);
+    //     lat = e.results[0].locations[0].latLng.lat;
+    //     lng = e.results[0].locations[0].latLng.lng;
+    //   });
+    // });
+    axios.get(`http://open.mapquestapi.com/geocoding/v1/address?key=55AhwkWG4Q0TgrT21xTKdMHB36kLLqtE
+    &location=${itemValue}`)
+    .then((e)=>{
+      console.log(e);
+      lat = e.data.results[0].locations[0].latLng.lat;
+      lng = e.data.results[0].locations[0].latLng.lng;
+      axios.get(`http://api.timezonedb.com/v2.1/get-time-zone?key=6XHWPNX38NKN&format=json&by=position&lat=${lat}&lng=${lng}`)
+      .then((e)=>{
+        console.log(e.data.gmtOffset)
+        this.setState({
+          offSetTime:e.data.gmtOffset/3600,
+          lat:lat,
+          lng:lng,
+          loading:false
+        })
+      })
+    })
+   
+  };
+
   render() {
     return (
       <View style={styles.container}>
@@ -132,9 +164,7 @@ export default class App extends React.Component {
             <Picker
               selectedValue={this.state.pickerVal}
               style={{ height: 50, width: 150 }}
-              onValueChange={(itemValue) =>
-                this.setState({ pickerVal: itemValue })
-              }
+              onValueChange={(itemValue) => this.onChangeHandler(itemValue)}
             >
               {this.state.cities.map((item, index) => {
                 return <Picker.Item label={item} value={index} key={index} />;
