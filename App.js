@@ -9,8 +9,7 @@ import {
   Picker,
 } from "react-native";
 import * as Location from "expo-location";
-import Moment from "react-moment";
-import axios from "axios"
+import axios from "axios";
 
 export default class App extends React.Component {
   state = {
@@ -25,45 +24,36 @@ export default class App extends React.Component {
   };
 
   componentDidMount = () => {
-    fetch("https://restcountries.eu/rest/v2/all").then((response) => {
+    axios.get("https://restcountries.eu/rest/v2/all").then((cities) => {
       let cityArr = [];
-      response.json().then((e) => {
-        e.forEach((element) => {
-          cityArr.push(element.capital);
-        });
-        this.onChangeHandler(cityArr[0])
-        this.setState({
-          cities: cityArr,
-        });
+      cities.data.forEach((element) => {
+        cityArr.push(element.capital);
+      });
+      this.onChangeHandler(cityArr[0]);
+      this.setState({
+        cities: cityArr,
       });
     });
-  
   };
 
   getFromLocal = async () => {
     this.setState({
       loading: true,
     });
-    await this.getLocation().then((e) => {
+    await this.getLocation().then((location) => {
       this.setState({
-        lat: e.coords.latitude,
-        lng: e.coords.longitude,
-        offSetTime: new Date(e.timestamp).getTimezoneOffset() / 60,
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+        offSetTime: new Date(location.timestamp).getTimezoneOffset() / 60,
       });
     });
-    await this.getSunTime()
-      .then((e) => {
-        e.json().then((ee) => {
-          this.setState({
-            sunrise: this.getDateWithOffset(ee.results.sunrise),
-            sunset: this.getDateWithOffset(ee.results.sunset),
-            loading: false,
-          });
-        });
-      })
-      .then(() => {
-        console.log(this.state);
+    await this.getSunTime().then((time) => {
+      this.setState({
+        sunrise: this.getDateWithOffset(time.data.results.sunrise),
+        sunset: this.getDateWithOffset(time.data.results.sunset),
+        loading: false,
       });
+    });
   };
 
   getFromGlobal = async () => {
@@ -71,31 +61,24 @@ export default class App extends React.Component {
       loading: true,
     });
 
-    this.getSunTime()
-      .then((e) => {
-        e.json().then((ee) => {
-          this.setState({
-            lat: this.state.lat,
-            lng: this.state.lng,
-            sunrise: this.getDateWithOffset(ee.results.sunrise),
-            sunset: this.getDateWithOffset(ee.results.sunset),
-            loading: false,
-          });
-        });
-      })
-
-      .then(() => {
-        console.log(this.state);
+    this.getSunTime().then((e) => {
+      this.setState({
+        lat: this.state.lat,
+        lng: this.state.lng,
+        sunrise: this.getDateWithOffset(e.data.results.sunrise),
+        sunset: this.getDateWithOffset(e.data.results.sunset),
+        loading: false,
       });
+    });
   };
 
   getDateWithOffset = (date) => {
-    let hours = Number(date.split(':')[0]) - Number(this.state.offSetTime) 
-    return hours + date.slice(date.indexOf(":"))
+    let hours = Number(date.split(":")[0]) - Number(this.state.offSetTime);
+    return hours + date.slice(date.indexOf(":"));
   };
 
   getCityLocation = async (pickerVal) => {
-    return await fetch(`http://open.mapquestapi.com/geocoding/v1/address?key=55AhwkWG4Q0TgrT21xTKdMHB36kLLqtE
+    return await axios.get(`http://open.mapquestapi.com/geocoding/v1/address?key=55AhwkWG4Q0TgrT21xTKdMHB36kLLqtE
 &location=${pickerVal || this.state.pickerVal}`);
   };
 
@@ -105,7 +88,7 @@ export default class App extends React.Component {
   };
 
   getOffset = async (lat, lng) => {
-    return await fetch(
+    return await axios.get(
       `http://api.timezonedb.com/v2.1/get-time-zone?key=6XHWPNX38NKN&format=json&by=position&lat=${
         lat || this.state.lat
       }&lng=${lng || this.state.lng}`
@@ -114,7 +97,7 @@ export default class App extends React.Component {
 
   getSunTime = async (lat, lng) => {
     console.log(this.state);
-    return await fetch(
+    return await axios.get(
       `https://api.sunrise-sunset.org/json?lat=${lat || this.state.lat}&lng=${
         lng || this.state.lng
       }`
@@ -126,34 +109,32 @@ export default class App extends React.Component {
       loading: true,
       sunrise: "",
       sunset: "",
-      pickerVal:itemValue
+      pickerVal: itemValue,
     });
     let lat, lng;
-    // this.getCityLocation(itemValue).then((response) => {
-    //   response.json().then((e) => {
-    //     console.log(e);
-    //     lat = e.results[0].locations[0].latLng.lat;
-    //     lng = e.results[0].locations[0].latLng.lng;
-    //   });
-    // });
-    axios.get(`http://open.mapquestapi.com/geocoding/v1/address?key=55AhwkWG4Q0TgrT21xTKdMHB36kLLqtE
-    &location=${itemValue}`)
-    .then((e)=>{
-      console.log(e);
-      lat = e.data.results[0].locations[0].latLng.lat;
-      lng = e.data.results[0].locations[0].latLng.lng;
-      axios.get(`http://api.timezonedb.com/v2.1/get-time-zone?key=6XHWPNX38NKN&format=json&by=position&lat=${lat}&lng=${lng}`)
-      .then((e)=>{
-        console.log(e.data.gmtOffset)
-        this.setState({
-          offSetTime:e.data.gmtOffset/3600,
-          lat:lat,
-          lng:lng,
-          loading:false
-        })
-      })
-    })
-   
+    axios
+      .get(
+        `http://open.mapquestapi.com/geocoding/v1/address?key=55AhwkWG4Q0TgrT21xTKdMHB36kLLqtE
+    &location=${itemValue}`
+      )
+      .then((location) => {
+        console.log(e);
+        lat = location.data.results[0].locations[0].latLng.lat;
+        lng = location.data.results[0].locations[0].latLng.lng;
+        axios
+          .get(
+            `http://api.timezonedb.com/v2.1/get-time-zone?key=6XHWPNX38NKN&format=json&by=position&lat=${lat}&lng=${lng}`
+          )
+          .then((timezone) => {
+            console.log(timezone.data.gmtOffset);
+            this.setState({
+              offSetTime: timezone.data.gmtOffset / 3600,
+              lat: lat,
+              lng: lng,
+              loading: false,
+            });
+          });
+      });
   };
 
   render() {
@@ -210,8 +191,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonContainer: {
-    flexDirection: "row",
-  },
-  btn: {},
 });
